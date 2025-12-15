@@ -1,0 +1,29 @@
+# Maven/Java
+target/
+*.class
+*.log
+hs_err_pid*
+replay_pid*
+
+# IDEs
+.idea/
+*.iml
+.project
+.classpath
+.settings/
+.vscode/
+
+# JavaFX artifacts
+out/
+dist/
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# App data
+data/*.db
+data/*.db-journal
+data/*.sqlite
+data/*.sqlite-journal
+receipts/
