@@ -3,6 +3,7 @@ package com.superette;
 import com.superette.db.Database;
 import com.superette.ui.CashRegisterController;
 import com.superette.ui.ProductsController;
+import com.superette.ui.SalesHistoryController;
 import com.superette.ui.SettingsController;
 import com.superette.ui.StockEntryController;
 
@@ -19,6 +20,7 @@ public class App extends Application {
         StockEntryController stockEntry = new StockEntryController();
         CashRegisterController sales = new CashRegisterController();
         SettingsController settings = new SettingsController();
+        SalesHistoryController history = new SalesHistoryController();
 
         // Cross-refresh
         stockEntry.setOnStockChanged(products::refresh);
@@ -26,6 +28,7 @@ public class App extends Application {
         sales.setOnSaleCompleted(() -> {
             products.refresh();
             stockEntry.refresh();
+            history.getRoot().requestLayout();
         });
 
         TabPane tabs = new TabPane();
@@ -35,6 +38,8 @@ public class App extends Application {
         stockTab.setClosable(false);
         Tab salesTab = new Tab("Sales", sales.getRoot());
         salesTab.setClosable(false);
+        Tab historyTab = new Tab("Sales History", history.getRoot());
+        historyTab.setClosable(false);
         Tab settingsTab = new Tab("Settings", settings.getRoot());
         settingsTab.setClosable(false);
 
@@ -46,11 +51,15 @@ public class App extends Application {
             if (stockTab.isSelected())
                 stockEntry.refresh();
         });
+        historyTab.setOnSelectionChanged(e -> {
+            if (historyTab.isSelected())
+                history.getRoot().requestLayout();
+        });
 
-        tabs.getTabs().addAll(productsTab, stockTab, salesTab, settingsTab);
+        tabs.getTabs().addAll(productsTab, stockTab, salesTab, historyTab, settingsTab);
 
         stage.setTitle("Superette POS");
-        stage.setScene(new Scene(tabs, 1150, 780));
+        stage.setScene(new Scene(tabs, 1200, 800));
         stage.show();
     }
 

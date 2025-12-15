@@ -5,6 +5,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 
 import com.superette.db.Database;
@@ -23,6 +25,22 @@ public class SaleRepo {
             this.unitPriceGross = unitPriceGross;
             this.vatRate = vatRate;
         }
+    }
+
+    public static class SaleSummary {
+        public int id;
+        public String datetime;
+        public double totalGross;
+        public double totalVat;
+        public String paymentMethod;
+    }
+
+    public static class SaleLineDetail {
+        public String productName;
+        public String barcode;
+        public double qty;
+        public double unitPriceGross;
+        public double vatRate;
     }
 
     public int createSale(List<SaleItem> items, String paymentMethod) {
@@ -70,7 +88,6 @@ public class SaleRepo {
                         if (keys.next()) {
                             saleId = keys.getInt(1);
                         } else {
-                            // Fallback for SQLite
                             try (Statement st = conn.createStatement();
                                     ResultSet rs = st.executeQuery("SELECT last_insert_rowid()")) {
                                 rs.next();
@@ -100,7 +117,6 @@ public class SaleRepo {
                         decStock.setInt(2, it.productId);
                         decStock.addBatch();
 
-                        // Record negative quantity movement for SALE
                         insMov.setInt(1, it.productId);
                         insMov.setDouble(2, -it.qty);
                         insMov.setString(3, "SALE");
@@ -134,5 +150,80 @@ public class SaleRepo {
                 return rs.getDouble(1);
             }
         }
+    }
+
+    // History: list sales by date range (inclusive)
+    public List<SaleSummary> listSales(LocalDate from, LocalDate to) {
+        String sql = "SELECT id, datetime, total_gross, total_vat, payment_method " +
+                "FROM sale WHERE date(datetime) BETWEEN ? AND ? " +
+                "ORDER BY datetime DESC, id DESC";
+        List<SaleSummary> out = new ArrayList<>();
+        try (Connection conn = Database.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, from.toString());
+            ps.setString(2, to.toString());
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    SaleSummary s = new SaleSummary();
+                    s.id = rs.getInt("id");
+                    s.datetime = rs.getString("datetime");
+                    s.totalGross = rs.getDouble("total_gross");
+                    s.totalVat = rs.getDouble("total_vat");
+                    s.paymentMethod = rs.getString("payment_method");
+                    out.add(s);
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("listSales failed", e);
+        }
+        return out;
+    }
+
+    // Details: lines for a given sale
+    public List<SaleLineDetail> saleDetails(int saleId) {
+        String sql = "SELECT p.name AS product_name, p.barcode, si.qty, si.unit_price_gross, si.vat_rate " +
+                "FROM sale_item si JOIN product p ON p.id = si.product_id " +
+                "WHERE si.sale_id = ? ORDER BY si.rowid";
+        List<SaleLineDetail> out = new ArrayList<>();
+        try (Connection conn = Database.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, saleId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    SaleLineDetail d = new SaleLineDetail();
+                    d.productName = rs.getString("product_name");
+                    d.barcode = rs.getString("barcode");
+                    d.qty = rs.getDouble("qty");
+                    d.unitPriceGross = rs.getDouble("unit_price_gross");
+                    d.vatRate = rs.getDouble("vat_rate");
+                    out.add(d);
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("saleDetails failed", e);
+        }
+        return out;
+    }
+
+    public SaleSummary getSale(int saleId) {
+        String sql = "SELECT id, datetime, total_gross, total_vat, payment_method FROM sale WHERE id=?";
+        try (Connection conn = Database.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, saleId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    SaleSummary s = new SaleSummary();
+                    s.id = rs.getInt("id");
+                    s.datetime = rs.getString("datetime");
+                    s.totalGross = rs.getDouble("total_gross");
+                    s.totalVat = rs.getDouble("total_vat");
+                    s.paymentMethod = rs.getString("payment_method");
+                    return s;
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("getSale failed", e);
+        }
+        return null;
     }
 }
