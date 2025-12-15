@@ -142,6 +142,3 @@ First Run
 - Packaging via `jpackage` (Windows installer)
 - Reports (low‑stock CSV, sales per day, top products)
 
-## License
-
-Add your preferred license (e.g., MIT) or keep private.
